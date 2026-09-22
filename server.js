@@ -40,6 +40,12 @@ function requireAuth(req, res, next) {
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,32}$/;
 
+// Precomputed bcrypt hash of a value no user can log in with. Comparing against
+// it when no account matches keeps the login work factor constant, so the
+// response gives no timing signal about whether a username exists.
+const DUMMY_PASSWORD_HASH =
+  "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+
 app.get("/signup", (req, res) => {
   if (req.session.user) return res.redirect("/");
   res.render("signup", { error: null, username: "" });
@@ -103,17 +109,18 @@ app.post("/login", async (req, res, next) => {
     );
     const user = rows[0];
 
-    if (!user) {
-      return res.status(401).render("login", {
-        error: `No account found for "${username}".`,
-        username,
-      });
-    }
+    // Always run a bcrypt comparison, even for unknown usernames, and return a
+    // single generic error for both "no such user" and "wrong password". This
+    // removes the username-existence oracle exposed by distinct messages and
+    // divergent code paths.
+    const passwordOk = await bcrypt.compare(
+      password,
+      user ? user.password_hash : DUMMY_PASSWORD_HASH,
+    );
 
-    const passwordOk = await bcrypt.compare(password, user.password_hash);
-    if (!passwordOk) {
+    if (!user || !passwordOk) {
       return res.status(401).render("login", {
-        error: "Incorrect password. Please try again.",
+        error: "Invalid username or password.",
         username,
       });
     }
