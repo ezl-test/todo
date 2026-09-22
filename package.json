@@ -1,12 +1,18 @@
 {
-  "name": "todo-server",
+  "name": "todo-app",
   "version": "1.0.0",
-  "description": "Simple Express server returning a list of names",
+  "description": "Multi-user to-do app with an Express server, Postgres DB layer, EJS templates, and username/password auth",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "init-db": "node scripts/init-db.js"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "pg": "^8.12.0"
   }
 }

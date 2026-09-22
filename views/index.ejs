@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>To-Do</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="topbar">
+      <h1>To-Do</h1>
+      <div class="account">
+        <span><%= currentUser.username %></span>
+        <form method="POST" action="/logout">
+          <button type="submit" class="link-btn">Log out</button>
+        </form>
+      </div>
+    </header>
+
+    <section class="board">
+      <form method="POST" action="/todos" class="inline-form">
+        <input type="text" name="title" placeholder="What needs doing?" required />
+        <button type="submit">Add</button>
+      </form>
+
+      <% if (!todos.length) { %>
+        <p class="empty">Nothing here yet. Add your first to-do above.</p>
+      <% } else { %>
+        <ul class="todo-list">
+          <% todos.forEach(function (t) { %>
+            <li class="todo <%= t.is_done ? 'done' : '' %>">
+              <form method="POST" action="/todos/<%= t.id %>/toggle" class="toggle-form">
+                <button type="submit" class="check" title="Toggle done">
+                  <%= t.is_done ? '☑' : '☐' %>
+                </button>
+              </form>
+
+              <span class="todo-title"><%- t.title %></span>
+
+              <form method="POST" action="/todos/<%= t.id %>/edit" class="edit-form">
+                <input type="text" name="title" value="<%- t.title %>" />
+              </form>
+
+              <form method="POST" action="/todos/<%= t.id %>/delete" class="delete-form">
+                <button type="submit" class="delete" title="Delete">✕</button>
+              </form>
+            </li>
+          <% }); %>
+        </ul>
+      <% } %>
+    </section>
+  </main>
+</body>
+</html>

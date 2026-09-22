@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign up · To-Do</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <main class="container narrow">
+    <h1>Sign up</h1>
+
+    <% if (error) { %>
+      <p class="error"><%= error %></p>
+    <% } %>
+
+    <form method="POST" action="/signup" class="stack-form">
+      <label>
+        Username
+        <input type="text" name="username" value="<%= username %>" autofocus required />
+        <small>3–32 characters: letters, numbers, underscore.</small>
+      </label>
+      <label>
+        Password
+        <input type="password" name="password" required />
+        <small>At least 6 characters.</small>
+      </label>
+      <button type="submit">Create account</button>
+    </form>
+
+    <p class="switch">Already have an account? <a href="/login">Log in</a></p>
+  </main>
+</body>
+</html>

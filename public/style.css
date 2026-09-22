@@ -1,0 +1,232 @@
+:root {
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --ink: #1f2430;
+  --muted: #6b7280;
+  --accent: #4f46e5;
+  --border: #e5e7eb;
+  --danger: #dc2626;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+h1 {
+  margin: 0 0 20px;
+  font-size: 28px;
+}
+
+h2 {
+  font-size: 18px;
+  color: var(--muted);
+  margin: 24px 0 12px;
+}
+
+.inline-form {
+  display: flex;
+  gap: 8px;
+}
+
+input[type="text"] {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 15px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 15px;
+  background: var(--accent);
+  color: #fff;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+.user-bar {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 8px;
+}
+
+.known-users {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.known-users a {
+  color: var(--accent);
+  text-decoration: none;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.known-users a.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.board {
+  margin-top: 16px;
+}
+
+.todo-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.todo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+.todo-title {
+  flex: 1;
+  font-size: 15px;
+}
+
+.todo .edit-form {
+  flex: 1;
+}
+
+.todo.done .edit-form input {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.check,
+.delete {
+  background: transparent;
+  color: var(--ink);
+  font-size: 18px;
+  padding: 4px 8px;
+}
+
+.delete {
+  color: var(--danger);
+}
+
+.empty {
+  color: var(--muted);
+  margin-top: 20px;
+}
+
+/* Auth + top bar */
+.container.narrow {
+  max-width: 380px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.link-btn {
+  background: transparent;
+  color: var(--accent);
+  padding: 4px 6px;
+  font-size: 14px;
+}
+
+.stack-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.stack-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.stack-form input {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.stack-form small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.error {
+  background: #fef2f2;
+  color: var(--danger);
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.switch {
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: 16px;
+}
+
+.switch a {
+  color: var(--accent);
+}
