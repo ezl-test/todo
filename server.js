@@ -39,6 +39,9 @@ function requireAuth(req, res, next) {
 }
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,32}$/;
+const GENERIC_LOGIN_ERROR = "Invalid username or password.";
+// Dummy hash so unknown usernames still run bcrypt.compare at the same cost.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync("timing-dummy", 10);
 
 app.get("/signup", (req, res) => {
   if (req.session.user) return res.redirect("/");
@@ -63,25 +66,18 @@ app.post("/signup", async (req, res, next) => {
       });
     }
 
-    const { rows: existing } = await query(
-      "SELECT 1 FROM users WHERE username = $1",
-      [username],
-    );
-    if (existing.length) {
-      return res.status(409).render("signup", {
-        error: `The username "${username}" is already registered.`,
-        username,
-      });
-    }
-
     const passwordHash = await bcrypt.hash(password, 10);
-    const { rows } = await query(
-      "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username",
-      [username, passwordHash],
-    );
-
-    req.session.user = { id: rows[0].id, username: rows[0].username };
-    res.redirect("/");
+    try {
+      await query(
+        "INSERT INTO users (username, password_hash) VALUES ($1, $2)",
+        [username, passwordHash],
+      );
+    } catch (err) {
+      if (err.code !== "23505") throw err;
+    }
+    // Same response whether the username was new or already taken, so signup
+    // cannot be used as a uniqueness oracle (no session / status split).
+    res.redirect("/login");
   } catch (err) {
     next(err);
   }
@@ -102,18 +98,13 @@ app.post("/login", async (req, res, next) => {
       [username],
     );
     const user = rows[0];
-
-    if (!user) {
+    const passwordOk = await bcrypt.compare(
+      password,
+      user ? user.password_hash : DUMMY_PASSWORD_HASH,
+    );
+    if (!user || !passwordOk) {
       return res.status(401).render("login", {
-        error: `No account found for "${username}".`,
-        username,
-      });
-    }
-
-    const passwordOk = await bcrypt.compare(password, user.password_hash);
-    if (!passwordOk) {
-      return res.status(401).render("login", {
-        error: "Incorrect password. Please try again.",
+        error: GENERIC_LOGIN_ERROR,
         username,
       });
     }
