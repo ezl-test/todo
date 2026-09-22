@@ -36,10 +36,10 @@
                 </button>
               </form>
 
-              <span class="todo-title"><%- t.title %></span>
+              <span class="todo-title"><%= t.title %></span>
 
               <form method="POST" action="/todos/<%= t.id %>/edit" class="edit-form">
-                <input type="text" name="title" value="<%- t.title %>" />
+                <input type="text" name="title" value="<%= t.title %>" />
               </form>
 
               <form method="POST" action="/todos/<%= t.id %>/delete" class="delete-form">
