@@ -40,6 +40,13 @@ function requireAuth(req, res, next) {
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,32}$/;
 
+// Fixed bcrypt hash used to perform a dummy comparison when a login is
+// attempted for a username that does not exist. Running bcrypt.compare in
+// both the known- and unknown-user paths keeps response times uniform so the
+// endpoint does not leak whether an account exists (CWE-204).
+const DUMMY_PASSWORD_HASH =
+  "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+
 app.get("/signup", (req, res) => {
   if (req.session.user) return res.redirect("/");
   res.render("signup", { error: null, username: "" });
@@ -103,17 +110,17 @@ app.post("/login", async (req, res, next) => {
     );
     const user = rows[0];
 
-    if (!user) {
-      return res.status(401).render("login", {
-        error: `No account found for "${username}".`,
-        username,
-      });
-    }
+    // Always run bcrypt.compare — against the real hash when the account
+    // exists, or a fixed dummy hash otherwise — so the response time is the
+    // same regardless of whether the username is registered. Combined with a
+    // single generic error message below, this prevents account enumeration
+    // via response-content or response-timing discrepancies (CWE-204).
+    const passwordHash = user ? user.password_hash : DUMMY_PASSWORD_HASH;
+    const passwordOk = await bcrypt.compare(password, passwordHash);
 
-    const passwordOk = await bcrypt.compare(password, user.password_hash);
-    if (!passwordOk) {
+    if (!user || !passwordOk) {
       return res.status(401).render("login", {
-        error: "Incorrect password. Please try again.",
+        error: "Invalid username or password.",
         username,
       });
     }
