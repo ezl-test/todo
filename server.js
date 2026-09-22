@@ -280,9 +280,10 @@ app.put("/api/todos/:id", requireAuth, async (req, res, next) => {
 
 app.delete("/api/todos/:id", requireAuth, async (req, res, next) => {
   try {
-    const { rowCount } = await query("DELETE FROM todos WHERE id = $1", [
-      req.params.id,
-    ]);
+    const { rowCount } = await query(
+      "DELETE FROM todos WHERE id = $1 AND user_id = $2",
+      [req.params.id, req.session.user.id],
+    );
     if (rowCount === 0) {
       return res.status(404).json({ error: "Todo not found." });
     }
