@@ -21,13 +21,54 @@ app.use(
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { httpOnly: true, secure: false, maxAge: 1000 * 60 * 60 * 24 * 7 },
+    cookie: {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    },
   }),
 );
 
 app.use((req, res, next) => {
   res.locals.currentUser = req.session.user || null;
   next();
+});
+
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function hasTrustedRequestOrigin(req) {
+  const expectedOrigin = `${req.protocol}://${req.get("host")}`;
+  const origin = req.get("origin");
+
+  if (origin) {
+    try {
+      return new URL(origin).origin === expectedOrigin;
+    } catch {
+      return false;
+    }
+  }
+
+  const referer = req.get("referer");
+  if (!referer) {
+    return false;
+  }
+
+  try {
+    return new URL(referer).origin === expectedOrigin;
+  } catch {
+    return false;
+  }
+}
+
+app.use((req, res, next) => {
+  if (SAFE_METHODS.has(req.method) || !req.session.user) {
+    return next();
+  }
+  if (hasTrustedRequestOrigin(req)) {
+    return next();
+  }
+  return res.status(403).send("Forbidden");
 });
 
 function requireAuth(req, res, next) {
