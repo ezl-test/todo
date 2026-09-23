@@ -256,12 +256,22 @@ app.post("/api/todos", requireAuth, async (req, res, next) => {
 
 app.put("/api/todos/:id", requireAuth, async (req, res, next) => {
   try {
+    const allowedColumns = { title: "title", is_done: "is_done" };
     const columns = Object.keys(req.body);
     if (columns.length === 0) {
       return res.status(400).json({ error: "No fields to update." });
     }
+    if (
+      columns.some(
+        (col) => !Object.prototype.hasOwnProperty.call(allowedColumns, col),
+      )
+    ) {
+      return res.status(400).json({ error: "Invalid fields to update." });
+    }
 
-    const assignments = columns.map((col, i) => `${col} = $${i + 1}`);
+    const assignments = columns.map(
+      (col, i) => `${allowedColumns[col]} = $${i + 1}`,
+    );
     const values = columns.map((col) => req.body[col]);
     values.push(req.params.id);
 
