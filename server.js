@@ -1,5 +1,6 @@
 require("dotenv").config();
 
+const crypto = require("crypto");
 const path = require("path");
 const express = require("express");
 const session = require("express-session");
@@ -21,12 +22,48 @@ app.use(
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { httpOnly: true, secure: false, maxAge: 1000 * 60 * 60 * 24 * 7 },
+    cookie: {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    },
   }),
 );
 
+function ensureCsrfToken(req) {
+  if (!req.session.csrfToken) {
+    req.session.csrfToken = crypto.randomBytes(32).toString("hex");
+  }
+  return req.session.csrfToken;
+}
+
+function csrfTokenFromRequest(req) {
+  const header = req.get("x-csrf-token") || req.get("x-xsrf-token");
+  if (header) return String(header);
+  if (req.body && req.body._csrf != null) return String(req.body._csrf);
+  return "";
+}
+
+function requireCsrf(req, res, next) {
+  const expected = req.session && req.session.csrfToken;
+  const provided = csrfTokenFromRequest(req);
+  const valid =
+    expected &&
+    provided.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  if (!valid) {
+    if (req.accepts("html")) {
+      return res.status(403).send("Invalid or missing CSRF token.");
+    }
+    return res.status(403).json({ error: "Invalid or missing CSRF token." });
+  }
+  next();
+}
+
 app.use((req, res, next) => {
   res.locals.currentUser = req.session.user || null;
+  res.locals.csrfToken = ensureCsrfToken(req);
   next();
 });
 
@@ -45,7 +82,7 @@ app.get("/signup", (req, res) => {
   res.render("signup", { error: null, username: "" });
 });
 
-app.post("/signup", async (req, res, next) => {
+app.post("/signup", requireCsrf, async (req, res, next) => {
   try {
     const username = String(req.body.username || "").trim();
     const password = String(req.body.password || "");
@@ -92,7 +129,7 @@ app.get("/login", (req, res) => {
   res.render("login", { error: null, username: "" });
 });
 
-app.post("/login", async (req, res, next) => {
+app.post("/login", requireCsrf, async (req, res, next) => {
   try {
     const username = String(req.body.username || "").trim();
     const password = String(req.body.password || "");
@@ -125,7 +162,7 @@ app.post("/login", async (req, res, next) => {
   }
 });
 
-app.post("/logout", (req, res) => {
+app.post("/logout", requireCsrf, (req, res) => {
   req.session.destroy(() => res.redirect("/login"));
 });
 
@@ -141,7 +178,7 @@ app.get("/", requireAuth, async (req, res, next) => {
   }
 });
 
-app.post("/todos", requireAuth, async (req, res, next) => {
+app.post("/todos", requireAuth, requireCsrf, async (req, res, next) => {
   try {
     const title = String(req.body.title || "").trim();
     if (title) {
@@ -156,7 +193,7 @@ app.post("/todos", requireAuth, async (req, res, next) => {
   }
 });
 
-app.post("/todos/:id/toggle", requireAuth, async (req, res, next) => {
+app.post("/todos/:id/toggle", requireAuth, requireCsrf, async (req, res, next) => {
   try {
     await query(
       `UPDATE todos SET is_done = NOT is_done, updated_at = now()
@@ -169,7 +206,7 @@ app.post("/todos/:id/toggle", requireAuth, async (req, res, next) => {
   }
 });
 
-app.post("/todos/:id/edit", requireAuth, async (req, res, next) => {
+app.post("/todos/:id/edit", requireAuth, requireCsrf, async (req, res, next) => {
   try {
     const title = String(req.body.title || "").trim();
     if (title) {
@@ -184,7 +221,7 @@ app.post("/todos/:id/edit", requireAuth, async (req, res, next) => {
   }
 });
 
-app.post("/todos/:id/delete", requireAuth, async (req, res, next) => {
+app.post("/todos/:id/delete", requireAuth, requireCsrf, async (req, res, next) => {
   try {
     await query("DELETE FROM todos WHERE id = $1 AND user_id = $2", [
       req.params.id,
@@ -238,7 +275,7 @@ app.get("/api/todos/:id", requireAuth, async (req, res, next) => {
   }
 });
 
-app.post("/api/todos", requireAuth, async (req, res, next) => {
+app.post("/api/todos", requireAuth, requireCsrf, async (req, res, next) => {
   try {
     const title = String(req.body.title || "").trim();
     if (!title) {
@@ -254,7 +291,7 @@ app.post("/api/todos", requireAuth, async (req, res, next) => {
   }
 });
 
-app.put("/api/todos/:id", requireAuth, async (req, res, next) => {
+app.put("/api/todos/:id", requireAuth, requireCsrf, async (req, res, next) => {
   try {
     const columns = Object.keys(req.body);
     if (columns.length === 0) {
@@ -278,7 +315,7 @@ app.put("/api/todos/:id", requireAuth, async (req, res, next) => {
   }
 });
 
-app.delete("/api/todos/:id", requireAuth, async (req, res, next) => {
+app.delete("/api/todos/:id", requireAuth, requireCsrf, async (req, res, next) => {
   try {
     const { rowCount } = await query("DELETE FROM todos WHERE id = $1", [
       req.params.id,
