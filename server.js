@@ -294,6 +294,9 @@ app.delete("/api/todos/:id", requireAuth, async (req, res, next) => {
 
 app.get("/api/users/:username", requireAuth, async (req, res, next) => {
   try {
+    if (req.params.username !== req.session.user.username) {
+      return res.status(403).json({ error: "Forbidden." });
+    }
     const { rows } = await query("SELECT * FROM users WHERE username = $1", [
       req.params.username,
     ]);
