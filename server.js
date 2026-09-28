@@ -1,6 +1,7 @@
 require("dotenv").config();
 
 const path = require("path");
+const { randomBytes } = require("crypto");
 const express = require("express");
 const session = require("express-session");
 const bcrypt = require("bcryptjs");
@@ -38,7 +39,7 @@ function requireAuth(req, res, next) {
   next();
 }
 
-const USERNAME_RE = /^[a-zA-Z0-9_]{3,32}$/;
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync("not-a-real-user", 10);
 
 app.get("/signup", (req, res) => {
   if (req.session.user) return res.redirect("/");
@@ -47,38 +48,24 @@ app.get("/signup", (req, res) => {
 
 app.post("/signup", async (req, res, next) => {
   try {
-    const username = String(req.body.username || "").trim();
     const password = String(req.body.password || "");
 
-    if (!USERNAME_RE.test(username)) {
-      return res.status(400).render("signup", {
-        error: "Username must be 3–32 characters: letters, numbers, underscore.",
-        username,
-      });
-    }
     if (password.length < 6) {
       return res.status(400).render("signup", {
         error: "Password must be at least 6 characters.",
-        username,
-      });
-    }
-
-    const { rows: existing } = await query(
-      "SELECT 1 FROM users WHERE username = $1",
-      [username],
-    );
-    if (existing.length) {
-      return res.status(409).render("signup", {
-        error: `The username "${username}" is already registered.`,
-        username,
+        username: "",
       });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const { rows } = await query(
-      "INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username",
-      [username, passwordHash],
-    );
+    let rows;
+    do {
+      const username = `u_${randomBytes(12).toString("hex")}`;
+      ({ rows } = await query(
+        "INSERT INTO users (username, password_hash) VALUES ($1, $2) ON CONFLICT (username) DO NOTHING RETURNING id, username",
+        [username, passwordHash],
+      ));
+    } while (!rows.length);
 
     req.session.user = { id: rows[0].id, username: rows[0].username };
     res.redirect("/");
@@ -103,15 +90,11 @@ app.post("/login", async (req, res, next) => {
     );
     const user = rows[0];
 
-    if (!user) {
-      return res.status(401).render("login", {
-        error: `No account found for "${username}".`,
-        username,
-      });
-    }
-
-    const passwordOk = await bcrypt.compare(password, user.password_hash);
-    if (!passwordOk) {
+    const passwordOk = await bcrypt.compare(
+      password,
+      user ? user.password_hash : DUMMY_PASSWORD_HASH,
+    );
+    if (!user || !passwordOk) {
       return res.status(401).render("login", {
         error: "Incorrect password. Please try again.",
         username,
@@ -294,9 +277,10 @@ app.delete("/api/todos/:id", requireAuth, async (req, res, next) => {
 
 app.get("/api/users/:username", requireAuth, async (req, res, next) => {
   try {
-    const { rows } = await query("SELECT * FROM users WHERE username = $1", [
-      req.params.username,
-    ]);
+    const { rows } = await query(
+      "SELECT id, username FROM users WHERE username = $1 AND id = $2",
+      [req.params.username, req.session.user.id],
+    );
     if (rows.length === 0) {
       return res.status(404).json({ error: "User not found." });
     }
