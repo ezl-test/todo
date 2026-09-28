@@ -15,6 +15,7 @@
     <% } %>
 
     <form method="POST" action="/login" class="stack-form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
       <label>
         Username
         <input type="text" name="username" value="<%= username %>" autofocus required />

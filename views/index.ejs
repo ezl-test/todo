@@ -13,6 +13,7 @@
       <div class="account">
         <span><%= currentUser.username %></span>
         <form method="POST" action="/logout">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
           <button type="submit" class="link-btn">Log out</button>
         </form>
       </div>
@@ -20,6 +21,7 @@
 
     <section class="board">
       <form method="POST" action="/todos" class="inline-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
         <input type="text" name="title" placeholder="What needs doing?" required />
         <button type="submit">Add</button>
       </form>
@@ -31,6 +33,7 @@
           <% todos.forEach(function (t) { %>
             <li class="todo <%= t.is_done ? 'done' : '' %>">
               <form method="POST" action="/todos/<%= t.id %>/toggle" class="toggle-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                 <button type="submit" class="check" title="Toggle done">
                   <%= t.is_done ? '☑' : '☐' %>
                 </button>
@@ -39,10 +42,12 @@
               <span class="todo-title"><%- t.title %></span>
 
               <form method="POST" action="/todos/<%= t.id %>/edit" class="edit-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                 <input type="text" name="title" value="<%- t.title %>" />
               </form>
 
               <form method="POST" action="/todos/<%= t.id %>/delete" class="delete-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
                 <button type="submit" class="delete" title="Delete">✕</button>
               </form>
             </li>
