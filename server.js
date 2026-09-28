@@ -40,6 +40,62 @@ function requireAuth(req, res, next) {
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,32}$/;
 
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
+const INVALID_CREDENTIALS_MESSAGE = "Invalid username or password.";
+const loginAttempts = new Map();
+
+function loginAttemptKeys(req, username) {
+  return [`ip:${req.ip}`, `user:${username.toLowerCase()}`];
+}
+
+// Returns the live throttle entry for a key, dropping it once the failure
+// window or the lockout it triggered has elapsed.
+function getLoginAttemptEntry(key, now) {
+  const entry = loginAttempts.get(key);
+  if (!entry) return null;
+  const expiresAt = entry.lockedUntil || entry.firstAttempt + LOGIN_WINDOW_MS;
+  if (expiresAt <= now) {
+    loginAttempts.delete(key);
+    return null;
+  }
+  return entry;
+}
+
+function loginRetryAfterSeconds(req, username) {
+  const now = Date.now();
+  let lockedUntil = 0;
+  for (const key of loginAttemptKeys(req, username)) {
+    const entry = getLoginAttemptEntry(key, now);
+    if (entry && entry.lockedUntil > lockedUntil) lockedUntil = entry.lockedUntil;
+  }
+  return lockedUntil > now ? Math.ceil((lockedUntil - now) / 1000) : 0;
+}
+
+function recordFailedLogin(req, username) {
+  const now = Date.now();
+  for (const key of loginAttemptKeys(req, username)) {
+    const entry = getLoginAttemptEntry(key, now) || {
+      count: 0,
+      firstAttempt: now,
+      lockedUntil: 0,
+    };
+    entry.count += 1;
+    if (entry.count >= LOGIN_MAX_ATTEMPTS) {
+      entry.lockedUntil = now + LOGIN_LOCKOUT_MS;
+    }
+    loginAttempts.set(key, entry);
+  }
+  if (loginAttempts.size > 10000) {
+    for (const key of loginAttempts.keys()) getLoginAttemptEntry(key, now);
+  }
+}
+
+function clearFailedLogins(req, username) {
+  for (const key of loginAttemptKeys(req, username)) loginAttempts.delete(key);
+}
+
 app.get("/signup", (req, res) => {
   if (req.session.user) return res.redirect("/");
   res.render("signup", { error: null, username: "" });
@@ -97,6 +153,17 @@ app.post("/login", async (req, res, next) => {
     const username = String(req.body.username || "").trim();
     const password = String(req.body.password || "");
 
+    const retryAfter = loginRetryAfterSeconds(req, username);
+    if (retryAfter > 0) {
+      res.set("Retry-After", String(retryAfter));
+      return res.status(429).render("login", {
+        error: `Too many failed login attempts. Please try again in ${Math.ceil(
+          retryAfter / 60,
+        )} minute(s).`,
+        username,
+      });
+    }
+
     const { rows } = await query(
       "SELECT id, username, password_hash FROM users WHERE username = $1",
       [username],
@@ -104,20 +171,23 @@ app.post("/login", async (req, res, next) => {
     const user = rows[0];
 
     if (!user) {
+      recordFailedLogin(req, username);
       return res.status(401).render("login", {
-        error: `No account found for "${username}".`,
+        error: INVALID_CREDENTIALS_MESSAGE,
         username,
       });
     }
 
     const passwordOk = await bcrypt.compare(password, user.password_hash);
     if (!passwordOk) {
+      recordFailedLogin(req, username);
       return res.status(401).render("login", {
-        error: "Incorrect password. Please try again.",
+        error: INVALID_CREDENTIALS_MESSAGE,
         username,
       });
     }
 
+    clearFailedLogins(req, username);
     req.session.user = { id: user.id, username: user.username };
     res.redirect("/");
   } catch (err) {
