@@ -103,17 +103,12 @@ app.post("/login", async (req, res, next) => {
     );
     const user = rows[0];
 
-    if (!user) {
+    const passwordOk = user
+      ? await bcrypt.compare(password, user.password_hash)
+      : false;
+    if (!user || !passwordOk) {
       return res.status(401).render("login", {
-        error: `No account found for "${username}".`,
-        username,
-      });
-    }
-
-    const passwordOk = await bcrypt.compare(password, user.password_hash);
-    if (!passwordOk) {
-      return res.status(401).render("login", {
-        error: "Incorrect password. Please try again.",
+        error: "Invalid username or password.",
         username,
       });
     }
