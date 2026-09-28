@@ -15,14 +15,10 @@
     <% } %>
 
     <form method="POST" action="/signup" class="stack-form">
-      <label>
-        Username
-        <input type="text" name="username" value="<%= username %>" autofocus required />
-        <small>3–32 characters: letters, numbers, underscore.</small>
-      </label>
+      <p>Your username will be assigned when you create your account. Save it to log in later.</p>
       <label>
         Password
-        <input type="password" name="password" required />
+        <input type="password" name="password" autofocus required />
         <small>At least 6 characters.</small>
       </label>
       <button type="submit">Create account</button>
