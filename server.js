@@ -210,14 +210,11 @@ app.get("/api/todos", requireAuth, async (req, res, next) => {
 
 app.get("/api/todos/search", requireAuth, async (req, res, next) => {
   try {
-    const q = req.query.q || "";
-    const sql =
-      "SELECT * FROM todos WHERE user_id = " +
-      req.session.user.id +
-      " AND title ILIKE '%" +
-      q +
-      "%' ORDER BY created_at DESC";
-    const { rows } = await query(sql);
+    const q = String(req.query.q || "");
+    const { rows } = await query(
+      "SELECT * FROM todos WHERE user_id = $1 AND title ILIKE $2 ORDER BY created_at DESC",
+      [req.session.user.id, `%${q}%`],
+    );
     res.json({ user: req.session.user.username, todos: rows });
   } catch (err) {
     next(err);
